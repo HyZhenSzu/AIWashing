@@ -1,6 +1,6 @@
 from loader import ReportLoader
 from scorer import GLM4FlashJsonScorer
-import Model.local_settings as local_settings
+import local_settings as local_settings
 from timer import Timer
 
 def run_json_scoring():
@@ -13,14 +13,14 @@ def run_json_scoring():
     overall_timer = Timer(name="Overall scoring for batch")
     overall_timer.start()
 
-    results = loader.process_dir(reading_path, num_files=7)
+    results = loader.iter_files(reading_path, num_files=10)
     for fname, chunks in results.items():
         file_timer = Timer(name=f"Scoring file {fname}")
         file_timer.start()
 
         scores = []
         for c in chunks:
-            s = scorer.score_chunk(c, debug=False)
+            s = scorer.score_chunk(c, debug=True)
             scores.append(s)
         overall_file_time = file_timer.stop()
         overall = sum(scores) / len(scores) if scores else None

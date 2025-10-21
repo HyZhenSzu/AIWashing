@@ -13,13 +13,13 @@ HEADING_VARIANTS = [
 END_TITLES = r"(公司治理|环境和社会责任|重要事项|股份变动及股东情况)"
 
 class ReportLoader:
-    def __init__(self, skip_pages: int = 5, chunk_size: int = 1000, chunk_overlap: int = 200):
+    def __init__(self, skip_pages = 5, chunk_size = 1000, chunk_overlap = 200):
         self.skip_pages = skip_pages
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.failed_to_read: List[str] = []
+        self.failed_to_read = []
 
-    def extract_sections(self, text: str, context_window: int = 200) -> str:
+    def extract_sections(self, text, context_window = 200):
         sections = []
         for heading in HEADING_VARIANTS:
             for match in re.finditer(heading, text):
@@ -34,7 +34,7 @@ class ReportLoader:
                 break
         return "\n".join(sections) if sections else ""
 
-    def load_and_chunk(self, pdf_path: str) -> List[str]:
+    def load_and_chunk(self, pdf_path):
         loader = PyPDFLoader(pdf_path)
         pages = loader.load()[self.skip_pages:]
         full_text = "\n".join(p.page_content for p in pages)
@@ -55,37 +55,32 @@ class ReportLoader:
         )
         return splitter.split_text(content)
 
-    def process_dir(self, pdf_dir: str, num_files: int = None) -> Dict[str, List[str]]:
-        results = {}
-        # 推荐使用 os.scandir() 或 sorted list from os.listdir()
-        all_files = sorted(f for f in os.listdir(pdf_dir) if os.path.isfile(os.path.join(pdf_dir, f)) and f.lower().endswith(".pdf"))
-
+    def iter_files(self, pdf_dir, num_files = None):
+        all_files = sorted(
+            f for f in os.listdir(pdf_dir)
+            if os.path.isfile(os.path.join(pdf_dir, f)) and f.lower().endswith(".pdf")
+        )
         if num_files:
             all_files = all_files[:num_files]
+
 
         for fname in all_files:
             path = os.path.join(pdf_dir, fname)
             chunks = self.load_and_chunk(path)
-            results[fname] = chunks
-
-        return results
-
+            yield fname, chunks
 
 
 if __name__ == "__main__":
-    pdf_folder = r"C:\Code\Article\Spider\scrape-cop-reports-CnInfo\YearlyReport\A股年报"
-    loader = ReportLoader(skip_pages=5, chunk_size=3000, chunk_overlap=500)
+    pdf_folder = r"C:\Code\Article\Spider\scrape-cop-reports-CnInfo\YearlyReport\A股年报"  # 修改为你的PDF目录
+    loader = ReportLoader(skip_pages=5, chunk_size=1000, chunk_overlap=200)
 
-    # 只读取前 3 份年报，用于快速测试
-    processed = loader.process_dir(pdf_folder, num_files=3)
-
-    for fname, chunks in processed.items():
-        print(f"\n--- {fname}: found {len(chunks)} chunks")
+    # 只读取前 2 份PDF用于测试
+    for fname, chunks in loader.iter_files(pdf_folder, num_files=2):
+        print(f"\n--- {fname}: 共 {len(chunks)} 个chunk")
         for i, chunk in enumerate(chunks, 1):
-            first_line = chunk.strip().split("\n")[0]
-            print(f"  Chunk {i} first line: {first_line[:50]}... length: {len(chunk)} chars")
+            print(f"\nChunk {i} 内容:\n{'='*40}\n{chunk}\n{'='*40}")
 
     if loader.failed_to_read:
-        print("\nFailed to extract sections from:", loader.failed_to_read)
+        print("\n未能成功提取的文件:", loader.failed_to_read)
     else:
-        print("\nAll selected files processed successfully.")
+        print("\n所有选定文件均已成功处理。")
